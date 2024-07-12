@@ -36,6 +36,7 @@ RUN \
     libtool \
     libvorbis-dev \
     libxi-dev \
+    lua5.1-dev \
     luajit-dev \
     mesa-dev \
     ncurses-dev \
@@ -55,12 +56,17 @@ RUN \
     libpq \
     libstdc++ \
     luajit \
-    lua-socket \
+    # lua-socket \ # No longer available
+    lua-cjson \
+    py3-pip \
+    python3-idle \
     sdl2 \
     sqlite \
     sqlite-libs \
     zstd \
     zstd-libs && \
+  echo "**** install python packages ****" && \
+  pip install miney --break-system-packages && \
   echo "**** compile spatialindex ****" && \
   mkdir -p /tmp/spatialindex && \
   SPATIAL_VER=$(curl -sX GET "https://api.github.com/repos/libspatialindex/libspatialindex/commits/main" \
@@ -127,6 +133,29 @@ RUN \
     /defaults/games && \
   cp -pr  /tmp/minetest/games/* /defaults/games/ && \
   printf "Linuxserver.io version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version && \
+  echo "**** compile lua-socket****" && \
+  LUA_VER=$(ls /usr/include | grep '^lua[0-9]\.[0-9]$' | sed 's/^lua//') && \
+  mkdir -p /tmp/luasocket && \
+  LUASOCKET_VER=$(curl -sX GET "https://api.github.com/repos/lunarmodules/luasocket/releases/latest" \
+    | jq -r .tag_name) && \
+  curl -o /tmp/luasocket.tar.gz \
+    -L "https://github.com/lunarmodules/luasocket/archive/${LUASOCKET_VER}.tar.gz" && \
+  tar xf /tmp/luasocket.tar.gz -C \
+    /tmp/luasocket --strip-components=1 && \
+  cd /tmp/luasocket && \
+  make PLAT=linux LUAV=${LUA_VER} && \
+  make install && \
+  echo "**** compile lua-cjson****" && \
+  LUA_VER=$(ls /usr/include | grep '^lua[0-9]\.[0-9]$' | sed 's/^lua//') && \
+  mkdir -p /tmp/luacjson && \
+  LUACJSON_VER=2.1.0 && \
+  curl -o /tmp/luacjson.tar.gz \
+    -L "https://github.com/mpx/lua-cjson/archive/refs/tags/${LUACJSON_VER}.tar.gz" && \
+  tar xf /tmp/luacjson.tar.gz -C \
+    /tmp/luacjson --strip-components=1 && \
+  cd /tmp/luacjson && \
+  make LUA_VERSION=${LUA_VER} LUA_INCLUDE_DIR=/usr/include/lua${LUA_VER} && \
+  make install && \
   echo "**** cleanup ****" && \
   apk del --purge \
     build-dependencies && \
